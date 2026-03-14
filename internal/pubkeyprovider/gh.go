@@ -77,13 +77,7 @@ func (g *GitHubProvider) getUserGroupKeys(ctx context.Context, orgName string, o
 }
 
 func (g *GitHubProvider) getUsersKeys(ctx context.Context, orgName string, users iter.Seq2[*github.User, error], options *UsersPublicKeysOptions) ([]string, error) {
-	teamKeys := []string{}
 	keys := make(chan string, 100)
-	go func() {
-		for key := range keys {
-			teamKeys = append(teamKeys, key)
-		}
-	}()
 
 	eg, ctx := errgroup.WithContext(ctx)
 	for user, err := range users {
@@ -115,6 +109,11 @@ func (g *GitHubProvider) getUsersKeys(ctx context.Context, orgName string, users
 	}
 
 	close(keys)
+
+	teamKeys := []string{}
+	for key := range keys {
+		teamKeys = append(teamKeys, key)
+	}
 
 	return teamKeys, nil
 }
