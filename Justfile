@@ -4,4 +4,4 @@ generate:
     go generate ./...
 
 run:
-    go run cmd/lazydvc/main.go
+    go run cmd/lazypubk/main.go

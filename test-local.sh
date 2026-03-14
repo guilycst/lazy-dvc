@@ -11,28 +11,14 @@ if [ -z "$LDVC_GH_ORG_NAME" ]; then
     exit 1
 fi
 
-echo "Building lazy-dvc image..."
-docker build -t lazy-dvc .
+echo "Building and starting containers..."
+docker compose up -d --build
 
-echo "Stopping and removing existing container if any..."
-docker rm -f lazy-dvc-test 2>/dev/null || true
-
-echo "Starting container..."
-docker run -d \
-    --privileged \
-    -p 2222:22 \
-    -p 8070:8070 \
-    -e LDVC_GH_TOKEN="$LDVC_GH_TOKEN" \
-    -e LDVC_GH_ORG_NAME="$LDVC_GH_ORG_NAME" \
-    -e LDVC_GH_TEAM_NAME="$LDVC_GH_TEAM_NAME" \
-    --name lazy-dvc-test \
-    lazy-dvc
-
-echo "Waiting for services to start..."
+echo "Waiting for services to be ready..."
 sleep 5
 
 echo "Container logs:"
-docker logs lazy-dvc-test
+docker compose logs
 
 echo ""
 echo "Testing SSH connection..."

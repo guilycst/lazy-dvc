@@ -13,6 +13,8 @@ import (
 	"github.com/guilycst/lazy-dvc/pkg/config"
 )
 
+var verbose bool
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -27,13 +29,10 @@ func main() {
 }
 
 func start(ctx context.Context) {
+	flag.BoolVar(&verbose, "v", false, "Enable verbose logging")
+	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 
 	cfg := &config.Config{}
-	err := config.LoadConfig(cfg)
-	if err != nil {
-		slog.Error("Failed to load configuration", "error", err)
-		os.Exit(1)
-	}
 
 	flag.Func("gh-token", "The token to authenticate with the provider", func(value string) error {
 		cfg.GH.Token = value
@@ -45,6 +44,17 @@ func start(ctx context.Context) {
 	})
 
 	flag.Parse()
+
+	if verbose {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+		slog.Debug("Verbose logging enabled")
+	}
+
+	err := config.LoadConfig(cfg)
+	if err != nil {
+		slog.Error("Failed to load configuration", "error", err)
+		os.Exit(1)
+	}
 
 	// This is fine for now since we only have one provider
 	if cfg.GH.Token == "" && cfg.GH.TokenFile == "" {

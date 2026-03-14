@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/google/go-github/v84/github"
@@ -85,7 +86,7 @@ func (g *GitHubProvider) getUsersKeys(ctx context.Context, orgName string, users
 			return nil, fmt.Errorf("failed to list members of team %s in org %s: %w", options.TeamName, orgName, err)
 		}
 
-		slog.Debug("Fetched team member", "team", options.TeamName, "username", user.GetLogin())
+		fmt.Fprintf(os.Stderr, "DEBUG: Fetched team member: %s\n", user.GetLogin())
 
 		eg.Go(func() error {
 			uk, err := g.getUserKeys(ctx, &UsersPublicKeysOptions{
@@ -164,11 +165,13 @@ func (g *GitHubProvider) validateOrgMember(ctx context.Context, orgName string, 
 
 func (g *GitHubProvider) getUserKeys(ctx context.Context, options *UsersPublicKeysOptions) ([]string, error) {
 	keys := []string{}
+	fmt.Fprintf(os.Stderr, "DEBUG: Fetching keys for user: %s\n", options.Username)
 	for key, err := range g.Users.ListKeysIter(ctx, options.Username, nil) {
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "DEBUG: Error fetching key for %s: %v\n", options.Username, err)
 			return nil, fmt.Errorf("failed to list keys for user %s: %w", options.Username, err)
 		}
-		slog.Debug("Fetched key for user", "username", options.Username, "key_id", key.GetID(), "key_title", key.GetTitle())
+		fmt.Fprintf(os.Stderr, "DEBUG: Fetched key for user: %s, key_id: %s\n", options.Username, *key.ID)
 		keys = append(keys, key.GetKey())
 	}
 

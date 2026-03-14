@@ -28,11 +28,8 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     fuse3 \
     rclone \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN curl -sSL https://github.com/versity/versitygw/releases/download/v1.0.2/versitygw-v1.0.2-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ versitygw && chmod +x /usr/local/bin/versitygw
-
-RUN mkdir /var/run/sshd
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir /var/run/sshd
 
 COPY --from=builder /out/lazypubk /usr/local/bin/lazypubk
 COPY --from=builder /out/lazy-dvc-auth /usr/local/bin/lazy-dvc-auth
@@ -44,16 +41,17 @@ RUN useradd -m -s /usr/local/bin/restricted-shell dvc-storage && \
 
 RUN sed -i 's/#AuthorizedKeysCommand/AuthorizedKeysCommand/' /etc/ssh/sshd_config && \
     sed -i 's/AuthorizedKeysCommand none/AuthorizedKeysCommand \/usr\/local\/bin\/lazy-dvc-auth %u/' /etc/ssh/sshd_config && \
+    sed -i 's/AuthorizedKeysCommandUser nobody/AuthorizedKeysCommandUser root/' /etc/ssh/sshd_config && \
     sed -i 's/#AuthorizedKeysCommandUser/AuthorizedKeysCommandUser/' /etc/ssh/sshd_config && \
-    sed -i 's/AuthorizedKeysCommandUser none/AuthorizedKeysCommandUser root/' /etc/ssh/sshd_config && \
     sed -i 's/#PubkeyAuthentication/PubkeyAuthentication/' /etc/ssh/sshd_config && \
     sed -i 's/PubkeyAuthentication no/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
-    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    sed -i 's/^AcceptEnv.*/#AcceptEnv LDVC_GH_TOKEN LDVC_GH_ORG_NAME LDVC_GH_TEAM_NAME/' /etc/ssh/sshd_config
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 22 8070
+EXPOSE 22
 
 ENTRYPOINT ["/entrypoint.sh"]

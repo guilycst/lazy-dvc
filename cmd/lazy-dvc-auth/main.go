@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 func main() {
@@ -16,19 +18,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	org := os.Getenv("LDVC_GH_ORG_NAME")
+	org := getEnv("LDVC_GH_ORG_NAME")
+	team := getEnv("LDVC_GH_TEAM_NAME")
+	_ = getEnv("LDVC_GH_TOKEN_FILE")
+
 	if org == "" {
 		os.Exit(1)
 	}
 
+	fmt.Fprintf(os.Stderr, "DEBUG: Fetching keys for org=%s team=%s\n", org, team)
+
 	cmd := exec.Command("lazypubk", "github",
 		"--org", org,
+		"-v",
 	)
 
-	team := os.Getenv("LDVC_GH_TEAM_NAME")
-	if team != "" {
-		cmd.Args = append(cmd.Args, "--team", team)
-	}
+	cmd.Env = append(os.Environ(),
+		"LDVC_GH_TOKEN_FILE=/run/secrets/gh_token",
+		"LDVC_GH_ORG_NAME="+org,
+	)
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -37,4 +45,24 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
+}
+
+func getEnv(key string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+
+	data, err := os.ReadFile("/etc/lazy-dvc/env")
+	if err != nil {
+		return ""
+	}
+
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, key+"=") {
+			return strings.TrimPrefix(line, key+"=")
+		}
+	}
+
+	return ""
 }
