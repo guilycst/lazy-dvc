@@ -1,8 +1,8 @@
-FROM golang:1.25-alpine AS builder
+FROM golang:1.25 AS builder
 
 WORKDIR /src
 
-RUN apk add --no-cache git
+RUN apt-get update && apt-get install -y git
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -10,15 +10,50 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-  go build -trimpath -ldflags="-s -w" -o /out/lazydvc ./cmd/lazydvc
+  go build -trimpath -ldflags="-s -w" -o /out/lazypubk ./cmd/lazypubk
 
-FROM alpine:3.21
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+  go build -trimpath -ldflags="-s -w" -o /out/lazy-dvc-auth ./cmd/lazy-dvc-auth
 
-RUN apk add --no-cache ca-certificates
-RUN adduser -D -H -u 10001 appuser
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+  go build -trimpath -ldflags="-s -w" -o /out/restricted-shell ./cmd/restricted-shell
 
-USER appuser
+FROM ubuntu:24.04
 
-COPY --from=builder /out/lazydvc /usr/local/bin/lazydvc
+ENV DEBIAN_FRONTEND=noninteractive
 
-ENTRYPOINT ["lazydvc"]
+RUN apt-get update && apt-get install -y \
+    openssh-server \
+    curl \
+    ca-certificates \
+    fuse3 \
+    rclone \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sSL https://github.com/versity/versitygw/releases/download/v1.0.2/versitygw-v1.0.2-linux-amd64.tar.gz | tar -xz -C /usr/local/bin/ versitygw && chmod +x /usr/local/bin/versitygw
+
+RUN mkdir /var/run/sshd
+
+COPY --from=builder /out/lazypubk /usr/local/bin/lazypubk
+COPY --from=builder /out/lazy-dvc-auth /usr/local/bin/lazy-dvc-auth
+COPY --from=builder /out/restricted-shell /usr/local/bin/restricted-shell
+
+RUN useradd -m -s /usr/local/bin/restricted-shell dvc-storage && \
+    mkdir -p /home/dvc-storage/data && \
+    chown -R dvc-storage:dvc-storage /home/dvc-storage
+
+RUN sed -i 's/#AuthorizedKeysCommand/AuthorizedKeysCommand/' /etc/ssh/sshd_config && \
+    sed -i 's/AuthorizedKeysCommand none/AuthorizedKeysCommand \/usr\/local\/bin\/lazy-dvc-auth %u/' /etc/ssh/sshd_config && \
+    sed -i 's/#AuthorizedKeysCommandUser/AuthorizedKeysCommandUser/' /etc/ssh/sshd_config && \
+    sed -i 's/AuthorizedKeysCommandUser none/AuthorizedKeysCommandUser root/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication/PubkeyAuthentication/' /etc/ssh/sshd_config && \
+    sed -i 's/PubkeyAuthentication no/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 22 8070
+
+ENTRYPOINT ["/entrypoint.sh"]
