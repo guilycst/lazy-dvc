@@ -48,13 +48,12 @@ func (g *GitHubProvider) GetUsersPublicKeys(ctx context.Context, orgName string,
 		return g.getTeamKeys(ctx, orgName, options, usrRole)
 	}
 
-	g.Organizations.ListMembersIter(ctx, orgName, &github.ListMembersOptions{
+	users := g.Organizations.ListMembersIter(ctx, orgName, &github.ListMembersOptions{
 		PublicOnly: false,
 		Role:       usrRole,
 	})
 
-	return nil, fmt.Errorf("either username or team name must be provided")
-
+	return g.getUsersKeys(ctx, orgName, users, options)
 }
 
 func (g *GitHubProvider) getUserGroupKeys(ctx context.Context, orgName string, options *UsersPublicKeysOptions, usrRole string) ([]string, error) {

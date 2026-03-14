@@ -39,7 +39,7 @@ type GithubConfig struct {
 
 func loadGithubConfig(cfg *Config) error {
 	cfg.GH = &GithubConfig{}
-	err := processEnvWithFallback("LDVC_GH", cfg.GH)
+	err := envconfig.Process("LDVC_GH", cfg.GH)
 	if err != nil {
 		return fmt.Errorf("failed to parse gh env vars: %w", err)
 	}
@@ -60,7 +60,7 @@ func loadGithubConfig(cfg *Config) error {
 }
 
 func LoadConfig(cfg *Config) error {
-	err := processEnvWithFallback("LDVC", cfg)
+	err := envconfig.Process("LDVC", cfg)
 	if err != nil {
 		return fmt.Errorf("failed to parse env vars: %w", err)
 	}
@@ -68,20 +68,6 @@ func LoadConfig(cfg *Config) error {
 	err = loadGithubConfig(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to load GitHub config: %w", err)
-	}
-
-	return nil
-}
-
-func processEnvWithFallback(prefix string, spec any) error {
-	if err := envconfig.Process("", spec); err != nil {
-		return err
-	}
-
-	if prefix != "" {
-		if err := envconfig.Process(prefix, spec); err != nil {
-			return err
-		}
 	}
 
 	return nil

@@ -20,10 +20,9 @@ func main() {
 	slog.Debug("Starting lazydvc...")
 
 	start(ctx)
-
-	<-ctx.Done()
 	stop()
 
+	<-ctx.Done()
 	slog.Debug("Received termination signal, shutting down...")
 }
 
