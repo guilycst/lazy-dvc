@@ -31,3 +31,5 @@ go.work.sum
 # .idea/
 # .vscode/
 gh_token.txt
+.images
+

@@ -37,7 +37,10 @@ COPY --from=builder /out/restricted-shell /usr/local/bin/restricted-shell
 
 RUN useradd -m -s /usr/local/bin/restricted-shell dvc-storage && \
     mkdir -p /home/dvc-storage/data && \
-    chown -R dvc-storage:dvc-storage /home/dvc-storage
+    chown -R root:root /home/dvc-storage && \
+    chmod -R 755 /home/dvc-storage && \
+    chown -R dvc-storage:dvc-storage /home/dvc-storage/data && \
+    chmod -R 777 /home/dvc-storage/data
 
 RUN sed -i 's/#AuthorizedKeysCommand/AuthorizedKeysCommand/' /etc/ssh/sshd_config && \
     sed -i 's/AuthorizedKeysCommand none/AuthorizedKeysCommand \/usr\/local\/bin\/lazy-dvc-auth %u/' /etc/ssh/sshd_config && \
@@ -47,7 +50,12 @@ RUN sed -i 's/#AuthorizedKeysCommand/AuthorizedKeysCommand/' /etc/ssh/sshd_confi
     sed -i 's/PubkeyAuthentication no/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
     sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
-    sed -i 's/^AcceptEnv.*/#AcceptEnv LDVC_GH_TOKEN LDVC_GH_ORG_NAME LDVC_GH_TEAM_NAME/' /etc/ssh/sshd_config
+    sed -i 's/^AcceptEnv.*/#AcceptEnv LDVC_GH_TOKEN LDVC_GH_ORG_NAME LDVC_GH_TEAM_NAME/' /etc/ssh/sshd_config && \
+    sed -i 's/^#Subsystem.*sftp.*/Subsystem sftp internal-sftp/' /etc/ssh/sshd_config && \
+    echo 'Match User dvc-storage' >> /etc/ssh/sshd_config && \
+    echo '    ForceCommand internal-sftp' >> /etc/ssh/sshd_config && \
+    echo '    ChrootDirectory %h' >> /etc/ssh/sshd_config && \
+    echo '    AllowTcpForwarding no' >> /etc/ssh/sshd_config
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
