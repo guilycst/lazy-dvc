@@ -1,0 +1,47 @@
+services:
+  # Local development only - for production, use any S3 provider
+  # See: https://github.com/versity/versitygw
+  versitygw:
+    image: versity/versitygw:latest
+    ports:
+      - "8070:8070"
+    volumes:
+      - versitygw-data:/tmp/vers
+      - versitygw-iam:/tmp/vgw
+    environment:
+      - ROOT_ACCESS_KEY=testuser
+      - ROOT_SECRET_KEY=secret
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "mkdir -p /tmp/vgw /tmp/vers && versitygw --port :8070 --iam-dir /tmp/vgw posix --versioning-dir /tmp/vers /tmp/vgw"
+
+  lazy-dvc:
+    build: .
+    ports:
+      - "2222:22"
+    environment:
+      - LDVC_GH_ORG_NAME=${LDVC_GH_ORG_NAME}
+      - AWS_ACCESS_KEY_ID=testuser
+      - AWS_SECRET_ACCESS_KEY=secret
+      - RCLONE_S3_ENDPOINT=http://versitygw:8070
+      # Rclone options (optional - defaults shown)
+      # - RCLONE_VFS_CACHE_MODE=full
+      # - RCLONE_VFS_CACHE_MAX_SIZE=50G
+      # - RCLONE_ALLOW_OTHER=true
+      # - RCLONE_ATTR_TIMEOUT=1s
+      # - RCLONE_DIR_CACHE_TIME=1m
+      # - RCLONE_VFS_READ_CHUNK_SIZE=128k
+      # - RCLONE_VFS_READ_AHEAD=256k
+    secrets:
+      - gh_token
+    depends_on:
+      - versitygw
+    privileged: true
+
+secrets:
+  gh_token:
+    file: ./gh_token.txt
+
+volumes:
+  versitygw-data:
+  versitygw-iam:

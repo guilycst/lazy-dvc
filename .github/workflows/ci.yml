@@ -1,0 +1,163 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, feat/*]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.lint.outcome }}
+      errors: ${{ steps.save-lint-errors.outputs.errors }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: golangci-lint
+        id: lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+        continue-on-error: true
+
+      - name: Save lint errors
+        id: save-lint-errors
+        if: failure() || steps.lint.outcome == 'failure'
+        run: |
+          echo "errors<<EOF" >> $GITHUB_OUTPUT
+          echo "Lint errors found. Please fix the issues above." >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Fail if lint failed
+        if: steps.lint.outcome == 'failure'
+        run: exit 1
+
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.test.outcome }}
+      coverage: ${{ steps.coverage.outputs.coverage }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        id: test
+        run: go test -race -v ./...
+        continue-on-error: true
+
+      - name: Check test result
+        if: steps.test.outcome == 'failure'
+        run: exit 1
+
+  report:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - name: Find comment
+        uses: peter-evans/find-comment@v4
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "[comment]: <> (ci-results)"
+
+      - name: Create success comment
+        if: needs.lint.result == 'success' && needs.test.result == 'success'
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          body: |
+            [comment]: <> (ci-results)
+            ## ✅ CI Checks Passed
+            
+            | Check | Status |
+            |-------|--------|
+            | Lint (golangci-lint) | ✅ Passed |
+            | Format (gofmt) | ✅ Passed |
+            | Vet | ✅ Passed |
+            | Test (with race detector) | ✅ Passed |
+            | Build | ✅ Passed |
+            
+            **Ready for review!** 
+            Please ensure you've reviewed the changes before approving.
+          edit-mode: replace
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create failure comment
+        if: needs.lint.result == 'failure' || needs.test.result == 'failure'
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          body: |
+            [comment]: <> (ci-results)
+            ## ❌ CI Checks Failed
+            
+            | Check | Status |
+            |-------|--------|
+            | Lint (golangci-lint) | ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+            | Format (gofmt) | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+            | Vet | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+            | Test (with race detector) | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+            
+            **Action required:** Please fix the failing checks above and push new commits.
+            
+            Run locally:
+            ```bash
+            # Fix lint issues
+            golangci-lint run --fix
+            
+            # Fix formatting
+            gofmt -w .
+            
+            # Run tests
+            go test -race ./...
+            ```
+          edit-mode: replace
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  status-check:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check status
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then
+            echo "One or more jobs failed"
+            exit 1
+          fi
+          echo "All checks passed!"
