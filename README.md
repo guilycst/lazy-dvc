@@ -40,7 +40,7 @@ Git LFS solves large file storage, but comes with significant tradeoffs:
 - **Uploads** → Counts against repository owner's storage (bandwidth not measured)
 - **Downloads** → Counts against repository owner's bandwidth
 - **Every push** → Entire file size charged again (not delta)
-- **CI/CD pulls** → Each `dvc pull` in Actions counts against bandwidth
+- **CI/CD pulls** → Each `git lfs pull` in Actions counts against bandwidth
 
 **Example:**
 ```
@@ -172,16 +172,16 @@ cd lazy-dvc
 # 2. Set your GitHub token (needs read:org scope)
 export LDVC_GH_TOKEN=ghp_xxxxx
 
-# 2. Set your GitHub org name
+# 3. Set your GitHub org name
 export LDVC_GH_ORG_NAME=myorg
 
-# 3. Build and run
+# 4. Build and run
 docker compose up -d --build
 
-# 4. Configure DVC
+# 5. Configure DVC
 dvc remote add -d storage ssh://dvc-storage@localhost:2222/data
 
-# 5. Test it works
+# 6. Test it works
 dvc push
 ```
 
@@ -207,7 +207,7 @@ dvc push
 | `LDVC_GH_TEAM_NAME` | No | Filter to specific team |
 | `LDVC_CACHE_TTL` | No | Cache duration (default: `5m`, golang duration format) |
 | `LDVC_CACHE_DISABLED` | No | Set to `true` to disable caching |
-| `LDVC_LOG_FILE` | No | Path to log file (default: stdout) |
+| `LDVC_LOG_FILE` | No | Path to log file (defaults to FIFO for prefixed logging) |
 
 ### Docker Secrets
 
@@ -416,7 +416,8 @@ services:
 ## CI/CD
 
 - `ci` workflow: `gofmt`, `go vet`, `go test`, `go build`
-- `docker` workflow: Build on PR, publish on push to main and tags
+- `docker` workflow: Build on PR, publish to GHCR on push to main and tags
+- `release` workflow: Build binaries for linux/darwin/windows (amd64/arm64), create GitHub release
 
 Published image: `ghcr.io/guilycst/lazy-dvc`
 
