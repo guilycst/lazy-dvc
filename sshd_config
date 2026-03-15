@@ -1,0 +1,20 @@
+# lazy-dvc sshd configuration
+# Pre-configured for DVC SFTP storage with GitHub SSH key authentication
+
+Include /etc/ssh/sshd_config.d/*.conf
+
+PermitRootLogin no
+PubkeyAuthentication yes
+PasswordAuthentication no
+
+AuthorizedKeysCommand /usr/local/bin/lazy-dvc-auth %u
+AuthorizedKeysCommandUser root
+
+AcceptEnv LDVC_GH_TOKEN LDVC_GH_ORG_NAME LDVC_GH_TEAM_NAME LDVC_CACHE_TTL LDVC_CACHE_DISABLED LDVC_VERBOSE
+
+Subsystem sftp internal-sftp
+
+Match User dvc-storage
+    ForceCommand internal-sftp
+    ChrootDirectory %h
+    AllowTcpForwarding no

@@ -111,9 +111,8 @@ exec 4> "$SSHD_FIFO"
 exec 5> "$LAZYPUBK_FIFO"
 exec 6> "$AUTH_FIFO"
 
-# Export FIFO paths for child processes
-export LDVC_LOG_FIFO="$LAZYPUBK_FIFO"
-export LDVC_AUTH_LOG_FIFO="$AUTH_FIFO"
+# Export log file path for lazy-dvc-auth (propagates to lazypubk)
+export LDVC_LOG_FILE="$AUTH_FIFO"
 
 # -----------------------------------------------------------------------------
 # Rclone Configuration

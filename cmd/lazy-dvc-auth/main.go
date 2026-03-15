@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	DefaultLazypubkFifo = "/tmp/lazypubk_fifo"
-	DefaultAuthFifo     = "/tmp/lazy-dvc-auth_fifo"
+	DefaultLogFifo = "/tmp/lazy-dvc-auth_fifo"
 )
 
 func main() {
@@ -55,6 +54,10 @@ func run(ctx context.Context) error {
 	}
 	if logFile != "" {
 		cfg.LogFile = logFile
+	}
+	// Default to FIFO for prefixed logging when no log file specified
+	if cfg.LogFile == "" {
+		cfg.LogFile = DefaultLogFifo
 	}
 
 	// Validate user argument
