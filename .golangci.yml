@@ -1,4 +1,4 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
@@ -14,8 +14,7 @@ linters:
     - gofmt
     - goimports
 
-linters-settings:
-  gofmt:
-    simplify: true
-  goimports:
-    local-prefixes: github.com/guilycst/lazy-dvc
+formatters:
+  enable:
+    - gofmt
+    - goimports
