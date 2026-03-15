@@ -68,9 +68,9 @@ ssh -p 2222 dvc-storage@localhost
 
 ```
 cmd/
-├── lazy-dvc-auth/    # SSH AuthorizedKeysCommand wrapper
+├── authpubk/         # SSH AuthorizedKeysCommand wrapper
 ├── lazypubk/         # Public key fetcher CLI
-└── restricted-shell/ # Restricted shell for SSH users
+└── noshell/          # Restricted shell for SSH users
 
 internal/
 └── pubkeyprovider/   # GitHub key provider implementation

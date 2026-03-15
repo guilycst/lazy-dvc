@@ -13,10 +13,10 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
   go build -trimpath -ldflags="-s -w" -o /out/lazypubk ./cmd/lazypubk
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-  go build -trimpath -ldflags="-s -w" -o /out/lazy-dvc-auth ./cmd/lazy-dvc-auth
+  go build -trimpath -ldflags="-s -w" -o /out/authpubk ./cmd/authpubk
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-  go build -trimpath -ldflags="-s -w" -o /out/restricted-shell ./cmd/restricted-shell
+  go build -trimpath -ldflags="-s -w" -o /out/noshell ./cmd/noshell
 
 FROM alpine:3.23
 
@@ -30,10 +30,10 @@ RUN apk add --no-cache \
     && mkdir /var/run/sshd
 
 COPY --from=builder /out/lazypubk /usr/local/bin/lazypubk
-COPY --from=builder /out/lazy-dvc-auth /usr/local/bin/lazy-dvc-auth
-COPY --from=builder /out/restricted-shell /usr/local/bin/restricted-shell
+COPY --from=builder /out/authpubk /usr/local/bin/authpubk
+COPY --from=builder /out/noshell /usr/local/bin/noshell
 
-RUN adduser -D -s /usr/local/bin/restricted-shell dvc-storage && \
+RUN adduser -D -s /usr/local/bin/noshell dvc-storage && \
     passwd -d dvc-storage && \
     mkdir -p /home/dvc-storage/data && \
     chown -R root:root /home/dvc-storage && \

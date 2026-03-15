@@ -39,14 +39,14 @@ By using your GitHub SSH keys as the source of truth, `lazy-dvc` ensures that:
 ┌─────────────┐     SSH/SFTP      ┌────────────────────┐
 │   Developer │ ───────────────► │    lazy-dvc        │
 │   (DVC)    │                  │  ┌──────────────┐  │
-│             │                  │  │ lazy-dvc-auth │──┼──► GitHub API
+│             │                  │  │  authpubk    │──┼──► GitHub API
 └─────────────┘                  │  │ (fetches keys)│  │
-                                 │  └──────────────┘  │
-                                 │  ┌──────────────┐  │
-                                 │  │ rclone mount │──┼──► S3 (versitygw)
-                                 │  │  /data       │  │
-                                 │  └──────────────┘  │
-                                 └────────────────────┘
+                                  │  └──────────────┘  │
+                                  │  ┌──────────────┐  │
+                                  │  │ rclone mount │──┼──► S3 (versitygw)
+                                  │  │  /data       │  │
+                                  │  └──────────────┘  │
+                                  └────────────────────┘
 ```
 
 1. **Identity** — Your GitHub Organization remains the source of truth
@@ -61,10 +61,10 @@ lazy-dvc ships with three binaries:
 | Binary | Purpose |
 |--------|---------|
 | `lazypubk` | Core CLI that fetches SSH public keys from GitHub org/team members |
-| `lazy-dvc-auth` | SSH AuthorizedKeysCommand wrapper — validates user and calls lazypubk |
-| `restricted-shell` | Minimal shell for SSH/SFTP sessions |
+| `authpubk` | SSH AuthorizedKeysCommand wrapper — validates user and calls lazypubk |
+| `noshell` | Minimal shell for SSH/SFTP sessions |
 
-`lazy-dvc-auth` exists because SSH's `AuthorizedKeysCommand` expects a specific contract: it takes a username as argument and outputs authorized_keys format to stdout. This wrapper handles that integration while keeping `lazypubk` as a reusable standalone tool.
+`authpubk` exists because SSH's `AuthorizedKeysCommand` expects a specific contract: it takes a username as argument and outputs authorized_keys format to stdout. This wrapper handles that integration while keeping `lazypubk` as a reusable standalone tool.
 
 ### Local Development
 
@@ -163,7 +163,7 @@ All container logs are written to stdout with process prefixes for easy filterin
 | Prefix | Process |
 |--------|---------|
 | `[lazypubk]` | Key fetching |
-| `[lazy-dvc-auth]` | SSH auth wrapper |
+| `[authpubk]` | SSH auth wrapper |
 | `[rclone]` | S3 mount operations |
 | `[sshd]` | SSH connections |
 | `[entrypoint]` | Container startup/shutdown |
@@ -259,7 +259,7 @@ dvc remote list
 docker compose logs -f lazy-dvc
 
 # Test auth manually
-docker compose exec lazy-dvc /usr/local/bin/lazy-dvc-auth dvc-storage
+docker compose exec lazy-dvc /usr/local/bin/authpubk dvc-storage
 ```
 
 ---

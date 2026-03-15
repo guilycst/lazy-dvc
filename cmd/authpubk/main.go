@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	DefaultLogFifo = "/tmp/lazy-dvc-auth_fifo"
+	DefaultLogFifo = "/tmp/authpubk_fifo"
 )
 
 func main() {
@@ -80,7 +80,7 @@ func run(ctx context.Context) error {
 	}
 	defer close()
 
-	slog.DebugContext(ctx, "Starting lazy-dvc-auth")
+	slog.DebugContext(ctx, "Starting authpubk")
 	slog.DebugContext(ctx, "Configuration", "org", cfg.GH.OrgName, "team", cfg.GH.TeamName, "user", targetUser)
 
 	// Validate required config

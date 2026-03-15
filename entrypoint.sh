@@ -29,7 +29,7 @@
 #
 # 3. Log Prefixing
 #    Log prefixes are handled as follows:
-#    - [lazypubk] / [lazy-dvc-auth]: Handled internally via slog (Go binaries)
+#    - [lazypubk] / [authpubk]: Handled internally via slog (Go binaries)
 #    - [rclone]: rclone --log-format includes timestamp, we prefix in post
 #    - [sshd]: sshd -e logs to stderr, we prefix in post
 #
@@ -95,7 +95,7 @@ chmod 755 /var/cache/lazy-dvc
 RCLONE_FIFO="/tmp/rclone_fifo"
 SSHD_FIFO="/tmp/sshd_fifo"
 LAZYPUBK_FIFO="/tmp/lazypubk_fifo"
-AUTH_FIFO="/tmp/lazy-dvc-auth_fifo"
+AUTH_FIFO="/tmp/authpubk_fifo"
 
 mkfifo "$RCLONE_FIFO" "$SSHD_FIFO" "$LAZYPUBK_FIFO" "$AUTH_FIFO"
 
@@ -103,7 +103,7 @@ mkfifo "$RCLONE_FIFO" "$SSHD_FIFO" "$LAZYPUBK_FIFO" "$AUTH_FIFO"
 (sed 's/^/[rclone] /' < "$RCLONE_FIFO" >&2) &
 (sed 's/^/[sshd] /' < "$SSHD_FIFO" >&2) &
 (sed 's/^/[lazypubk] /' < "$LAZYPUBK_FIFO" >&2) &
-(sed 's/^/[lazy-dvc-auth] /' < "$AUTH_FIFO" >&2) &
+(sed 's/^/[authpubk] /' < "$AUTH_FIFO" >&2) &
 
 # Keep FIFOs open even if process crashes (prevents sed from exiting)
 exec 3> "$RCLONE_FIFO"
@@ -111,7 +111,7 @@ exec 4> "$SSHD_FIFO"
 exec 5> "$LAZYPUBK_FIFO"
 exec 6> "$AUTH_FIFO"
 
-# Export log file path for lazy-dvc-auth (propagates to lazypubk)
+# Export log file path for authpubk (propagates to lazypubk)
 export LDVC_LOG_FILE="$AUTH_FIFO"
 
 # -----------------------------------------------------------------------------
@@ -240,7 +240,7 @@ fi
 # -----------------------------------------------------------------------------
 
 log "Container startup complete, entering supervisor loop"
-log "Logs from lazypubk and lazy-dvc-auth will be prefixed with their names"
+log "Logs from lazypubk and authpubk will be prefixed with their names"
 
 # Wait for either process to exit (polling approach for POSIX sh compatibility)
 while kill -0 "$RCLONE_PID" 2>/dev/null && kill -0 "$SSHD_PID" 2>/dev/null; do

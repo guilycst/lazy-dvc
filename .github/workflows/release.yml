@@ -72,8 +72,8 @@ jobs:
           if [ "$OS" = "windows" ]; then EXT=".exe"; fi
           mkdir -p dist
           go build -trimpath -ldflags="-s -w" -o "dist/lazypubk-${OS}-${ARCH}${EXT}" ./cmd/lazypubk
-          go build -trimpath -ldflags="-s -w" -o "dist/lazy-dvc-auth-${OS}-${ARCH}${EXT}" ./cmd/lazy-dvc-auth
-          go build -trimpath -ldflags="-s -w" -o "dist/restricted-shell-${OS}-${ARCH}${EXT}" ./cmd/restricted-shell
+          go build -trimpath -ldflags="-s -w" -o "dist/authpubk-${OS}-${ARCH}${EXT}" ./cmd/authpubk
+          go build -trimpath -ldflags="-s -w" -o "dist/noshell-${OS}-${ARCH}${EXT}" ./cmd/noshell
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

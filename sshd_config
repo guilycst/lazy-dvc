@@ -7,7 +7,7 @@ PermitRootLogin no
 PubkeyAuthentication yes
 PasswordAuthentication no
 
-AuthorizedKeysCommand /usr/local/bin/lazy-dvc-auth %u
+AuthorizedKeysCommand /usr/local/bin/authpubk %u
 AuthorizedKeysCommandUser root
 
 AcceptEnv LDVC_GH_TOKEN LDVC_GH_ORG_NAME LDVC_GH_TEAM_NAME LDVC_CACHE_TTL LDVC_CACHE_DISABLED LDVC_VERBOSE
