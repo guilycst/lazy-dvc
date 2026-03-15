@@ -56,26 +56,6 @@ func (g *GitHubProvider) GetUsersPublicKeys(ctx context.Context, orgName string,
 	return g.getUsersKeys(ctx, orgName, users, options)
 }
 
-func (g *GitHubProvider) getUserGroupKeys(ctx context.Context, orgName string, options *UsersPublicKeysOptions, usrRole string) ([]string, error) {
-	team, ghr, err := g.Teams.GetTeamBySlug(ctx, orgName, options.TeamName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get team %s in org %s: %w", options.TeamName, orgName, err)
-	}
-
-	slog.Debug("github response", "response", ghr)
-
-	if team == nil {
-		return nil, fmt.Errorf("team %s not found in org %s", options.TeamName, orgName)
-	}
-
-	users := g.Teams.ListTeamMembersBySlugIter(ctx, orgName, options.TeamName, &github.TeamListTeamMembersOptions{
-		Role:        usrRole,
-		ListOptions: github.ListOptions{},
-	})
-
-	return g.getUsersKeys(ctx, orgName, users, options)
-}
-
 func (g *GitHubProvider) getUsersKeys(ctx context.Context, orgName string, users iter.Seq2[*github.User, error], options *UsersPublicKeysOptions) ([]string, error) {
 	keys := make(chan string, 100)
 

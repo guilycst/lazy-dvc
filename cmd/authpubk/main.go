@@ -78,7 +78,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to setup logger: %w", err)
 	}
-	defer close()
+	defer func() { _ = close() }()
 
 	slog.DebugContext(ctx, "Starting authpubk")
 	slog.DebugContext(ctx, "Configuration", "org", cfg.GH.OrgName, "team", cfg.GH.TeamName, "user", targetUser)

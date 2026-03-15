@@ -39,7 +39,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to setup logger: %w", err)
 	}
-	defer close()
+	defer func() { _ = close() }()
 
 	slog.DebugContext(ctx, "Starting lazypubk")
 	slog.DebugContext(ctx, "Configuration", "org", cfg.GH.OrgName, "team", cfg.GH.TeamName, "cache_ttl", cfg.CacheTTL, "cache_disabled", cfg.CacheDisabled)
