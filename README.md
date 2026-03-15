@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/guilycst/lazy-dvc/actions/workflows/ci.yml/badge.svg)](https://github.com/guilycst/lazy-dvc/actions/workflows/ci.yml)
 [![Docker](https://github.com/guilycst/lazy-dvc/actions/workflows/docker.yml/badge.svg)](https://github.com/guilycst/lazy-dvc/actions/workflows/docker.yml)
+[![Release](https://github.com/guilycst/lazy-dvc/actions/workflows/release.yml/badge.svg)](https://github.com/guilycst/lazy-dvc/actions/workflows/release.yml)
 
 ### Large file management via the identity you already have.
 
