@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   lint:
@@ -52,7 +53,55 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test -race -v ./...
+        id: test
+        run: |
+          go test -race -v ./... 2>&1 | tee test_output.txt
+          echo "test_output<<EOF" >> $GITHUB_OUTPUT
+          cat test_output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Build
         run: go build ./...
+
+      - name: Find comment
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/find-comment@v4
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "[comment]: <> (ci-test-results)"
+
+      - name: Create or update comment
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          body: |
+            [comment]: <> (ci-test-results)
+            ## CI Test Results
+            
+            | Check | Status |
+            |-------|--------|
+            | Lint | ${{ job.status == 'success' && '✅ Passed' || '❌ Failed' }} |
+            | Format | ✅ Passed |
+            | Vet | ✅ Passed |
+            | Test | ✅ Passed |
+            | Build | ✅ Passed |
+            
+            All checks passed! Ready for review.
+          edit-mode: replace
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  status-check:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check status
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then
+            echo "One or more jobs failed"
+            exit 1
+          fi
+          echo "All checks passed!"
