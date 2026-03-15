@@ -37,15 +37,41 @@ By using your GitHub SSH keys as the source of truth, `lazy-dvc` ensures that:
 
 Git LFS solves large file storage, but comes with significant tradeoffs:
 
+**GitHub LFS quotas (free tier):**
+
+| Plan | Storage | Bandwidth/month |
+|------|---------|-----------------|
+| GitHub Free | 10 GB | 10 GB |
+| GitHub Pro | 10 GB | 10 GB |
+| GitHub Team | 250 GB | 250 GB |
+| Enterprise | 250 GB | 250 GB |
+
+**How usage is measured:**
+
+- **Uploads** → Counts against repository owner's storage (bandwidth not measured)
+- **Downloads** → Counts against repository owner's bandwidth
+- **Every push** → Entire file size charged again (not delta)
+- **CI/CD pulls** → Each `dvc pull` in Actions counts against bandwidth
+
+**Example:**
+```
+Push 500 MB file        → 500 MB storage used
+Push 1 byte change      → Another 500 MB storage (total: 1 GB)
+Pull twice              → 1 GB bandwidth used
+CI runs 10 times/month   → 5 GB bandwidth used
+```
+
+**Other issues:**
+
 | Issue | Git LFS |
 |-------|---------|
 | **Auth** | Requires separate credentials (HTTPS + PAT) for storage |
-| **Limits** | 1 GB storage + 1 GB bandwidth/month on free tier |
 | **History** | Rebase/filter-branch corrupts LFS pointers |
 | **CI/CD** | Every job needs `git lfs install` + credentials |
 | **Partial clone** | Doesn't work well with `--filter` |
 | **Locking** | Optional, easy to forget, causes conflicts |
 | **Vendor lock** | GitHub LFS, GitLab LFS, etc. |
+| **Quota exceeded** | Can't push new files, only retrieve pointers |
 
 ## Why Not Standard DVC?
 
