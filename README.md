@@ -43,7 +43,7 @@ By using your GitHub SSH keys as the source of truth, `lazy-dvc` ensures that:
 └─────────────┘                  │  │ (fetches keys)│  │
                                   │  └──────────────┘  │
                                   │  ┌──────────────┐  │
-                                  │  │ rclone mount │──┼──► S3 (versitygw)
+                                  │  │ rclone mount │──┼──► S3 Backend
                                   │  │  /data       │  │
                                   │  └──────────────┘  │
                                   └────────────────────┘
@@ -66,11 +66,17 @@ lazy-dvc ships with three binaries:
 
 `authpubk` exists because SSH's `AuthorizedKeysCommand` expects a specific contract: it takes a username as argument and outputs authorized_keys format to stdout. This wrapper handles that integration while keeping `lazypubk` as a reusable standalone tool.
 
-### Local Development
+### Storage Backend
 
-For local testing, `lazy-dvc` uses [versitygw](https://github.com/versity/versitygw) by [Versity](https://versity.com/) as a lightweight S3-compatible gateway. **This is for local testing only** — for production, use any S3-compatible provider (AWS S3, MinIO, Ceph, etc.).
+`lazy-dvc` uses **rclone** to mount any S3-compatible storage as the DVC remote. This gives you flexibility to use:
 
-> **Shoutout to Versity** — versitygw is an excellent tool for local S3-compatible storage testing. Check out their [GitHub](https://github.com/versity/versitygw) for more.
+- **AWS S3** — Amazon's managed object storage
+- **MinIO** — Self-hosted S3-compatible storage
+- **Ceph RADOS** — Distributed storage with S3 gateway
+- **VersityGW** — Lightweight S3-compatible gateway-by [Versity](https://versity.com/)
+- **Any S3-compatible backend**
+
+For the quick start example, we use [versitygw](https://github.com/versity/versitygw) because it's easy to set up locally. VersityGW is [battle-tested and production-ready](https://github.com/versity/versitygw) with comprehensive test coverage, security testing, and industry-standard S3 client validation. Use whatever S3 backend fits your needs.
 
 ---
 
@@ -285,7 +291,7 @@ services:
 
 ### Production Tips
 
-1. **Use a real S3 backend** instead of versitygw:
+1. **Configure your S3 backend** — Set yourS3 endpoint and credentials:
 
    ```yaml
    environment:
