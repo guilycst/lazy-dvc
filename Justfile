@@ -20,3 +20,9 @@ docker-logs version="latest":
 
 ssh-iter:
     ssh -p 2222 -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" dvc-storage@localhost "ls -la /home/dvc-storage/data"
+
+dvc-push:
+    dvc add -f data/* && dvc push
+
+dvc-pull:
+    dvc pull 

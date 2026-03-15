@@ -86,6 +86,26 @@ chown -R dvc-storage:dvc-storage /var/cache/lazy-dvc
 chmod 755 /var/cache/lazy-dvc
 
 # -----------------------------------------------------------------------------
+# Named Pipes for Log Prefixing
+# -----------------------------------------------------------------------------
+# Using FIFOs allows us to prefix logs without breaking PID tracking.
+# When you pipe (command | sed ...), $! captures sed's PID, not command's.
+# With FIFOs, command writes to a pipe, sed reads from it, and $! stays correct.
+
+RCLONE_FIFO="/tmp/rclone_fifo"
+SSHD_FIFO="/tmp/sshd_fifo"
+
+mkfifo "$RCLONE_FIFO" "$SSHD_FIFO"
+
+# Background log prefixers - these run for the container's lifetime
+(sed 's/^/[rclone] /' < "$RCLONE_FIFO" >&2) &
+(sed 's/^/[sshd] /' < "$SSHD_FIFO" >&2) &
+
+# Keep FIFOs open even if process crashes (prevents sed from exiting)
+exec 3> "$RCLONE_FIFO"
+exec 4> "$SSHD_FIFO"
+
+# -----------------------------------------------------------------------------
 # Rclone Configuration
 # -----------------------------------------------------------------------------
 
@@ -159,8 +179,8 @@ if [ "${RCLONE_ALLOW_OTHER:-true}" = "true" ]; then
     RCLONE_ALLOW_OTHER_FLAG="--allow-other"
 fi
 
-# Start rclone without sed pipe - rclone logs with its own format
-# The "[rclone]" prefix is less important than correct PID tracking for supervision
+# Start rclone - output goes to FIFO for prefixing
+# This keeps rclone as the direct child, so $! captures rclone's PID
 rclone mount \
     --vfs-cache-mode "$RCLONE_VFS_CACHE_MODE" \
     --vfs-cache-max-size "$RCLONE_VFS_CACHE_MAX_SIZE" \
@@ -170,7 +190,7 @@ rclone mount \
     --vfs-read-chunk-size "$RCLONE_VFS_READ_CHUNK_SIZE" \
     --vfs-read-ahead "$RCLONE_VFS_READ_AHEAD" \
     --log-level INFO \
-    s3: /home/dvc-storage/data &
+    s3: /home/dvc-storage/data >"$RCLONE_FIFO" 2>&1 &
 
 RCLONE_PID=$!
 log "rclone started (PID: $RCLONE_PID)"
@@ -192,12 +212,9 @@ fi
 
 log "Starting sshd"
 
-# Configure sshd log level
-sed -i 's/^#*LogLevel.*/LogLevel INFO/' /etc/ssh/sshd_config
-
 # Start sshd in foreground (-D) with stderr logging (-e)
-# sshd -e logs to stderr which Docker captures
-/usr/sbin/sshd -D -e &
+# Output goes to FIFO for prefixing, keeping sshd as direct child
+/usr/sbin/sshd -D -e >"$SSHD_FIFO" 2>&1 &
 
 SSHD_PID=$!
 log "sshd started (PID: $SSHD_PID)"

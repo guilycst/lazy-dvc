@@ -69,7 +69,7 @@ func NewCachedProvider(delegate Provider, opts ...CachedProviderOption) *CachedP
 
 func (c *CachedProvider) GetUsersPublicKeys(ctx context.Context, orgName string, opts ...UsersPublicKeysOption) ([]string, error) {
 	if c.disabled {
-		slog.Debug("Cache disabled, fetching from delegate")
+		slog.Info("Fetching keys from GitHub API (cache disabled)")
 		return c.delegate.GetUsersPublicKeys(ctx, orgName, opts...)
 	}
 
@@ -77,21 +77,21 @@ func (c *CachedProvider) GetUsersPublicKeys(ctx context.Context, orgName string,
 	lockFile := filepath.Join(c.cacheDir, "keys.lock")
 
 	if err := os.MkdirAll(c.cacheDir, 0755); err != nil {
-		slog.Debug("Failed to create cache directory, fetching from delegate", "error", err)
+		slog.Info("Fetching keys from GitHub API (cache unavailable)", "error", err)
 		return c.delegate.GetUsersPublicKeys(ctx, orgName, opts...)
 	}
 
 	if keys, err := c.readCache(cacheFile); err == nil {
-		slog.Debug("Cache hit, returning cached keys", "num_keys", len(keys))
+		slog.Info("Cache hit", "num_keys", len(keys))
 		return keys, nil
 	}
 
-	slog.Debug("Cache miss, acquiring lock to fetch fresh keys")
+	slog.Info("Cache miss, fetching keys from GitHub API")
 
 	if err := c.acquireLock(lockFile); err != nil {
-		slog.Debug("Failed to acquire lock, checking cache again", "error", err)
+		slog.Debug("Lock acquisition failed, rechecking cache", "error", err)
 		if keys, err := c.readCache(cacheFile); err == nil {
-			slog.Debug("Cache hit after lock failure, returning cached keys", "num_keys", len(keys))
+			slog.Info("Cache hit (after lock contention)", "num_keys", len(keys))
 			return keys, nil
 		}
 		return nil, fmt.Errorf("failed to acquire lock and no valid cache: %w", err)
@@ -100,11 +100,13 @@ func (c *CachedProvider) GetUsersPublicKeys(ctx context.Context, orgName string,
 
 	keys, err := c.delegate.GetUsersPublicKeys(ctx, orgName, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch keys from delegate: %w", err)
+		return nil, fmt.Errorf("failed to fetch keys from GitHub API: %w", err)
 	}
 
 	if err := c.writeCache(cacheFile, keys); err != nil {
-		slog.Debug("Failed to write cache, continuing without caching", "error", err)
+		slog.Info("Fetched keys from GitHub API (cache write failed)", "num_keys", len(keys))
+	} else {
+		slog.Info("Fetched keys from GitHub API and cached", "num_keys", len(keys))
 	}
 
 	return keys, nil
