@@ -4,15 +4,4 @@ run:
   timeout: 5m
 
 linters:
-  enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-
-formatters:
-  enable:
-    - gofmt
-    - goimports
+  default: all
