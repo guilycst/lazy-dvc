@@ -31,7 +31,6 @@ go.work.sum
 # .idea/
 # .vscode/
 gh_token.txt
-.images
 
 lazy-dvc-auth
 .gitignore

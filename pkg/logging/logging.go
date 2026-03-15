@@ -55,8 +55,28 @@ func NewHandler(w io.Writer, prefix string, verbose bool) slog.Handler {
 	return NewPrefixHandler(textHandler, prefix)
 }
 
+const (
+	DefaultLazypubkFifo = "/tmp/lazypubk_fifo"
+	DefaultAuthFifo     = "/tmp/lazy-dvc-auth_fifo"
+)
+
 func SetupLogger(logFile string, prefix string, verbose bool) error {
-	var w io.Writer = os.Stdout
+	var w io.Writer = os.Stderr
+
+	// Try to use FIFO for container mode (hardcoded paths)
+	var fifoPath string
+	switch prefix {
+	case "lazypubk":
+		fifoPath = DefaultLazypubkFifo
+	case "lazy-dvc-auth":
+		fifoPath = DefaultAuthFifo
+	}
+
+	if fifoPath != "" && logFile == "" {
+		if f, err := os.OpenFile(fifoPath, os.O_WRONLY, 0); err == nil {
+			w = f
+		}
+	}
 
 	if logFile != "" {
 		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -70,4 +90,9 @@ func SetupLogger(logFile string, prefix string, verbose bool) error {
 	slog.SetDefault(logger)
 
 	return nil
+}
+
+func SetupLoggerWithWriter(w io.Writer, prefix string, verbose bool) {
+	logger := slog.New(NewHandler(w, prefix, verbose))
+	slog.SetDefault(logger)
 }

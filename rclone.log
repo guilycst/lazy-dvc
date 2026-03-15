@@ -1,6 +1,0 @@
-Received signal 15; terminating.
-2026/03/15 02:30:10 ERROR : /home/dvc-storage/data: Unmounted rclone mount
-2026/03/15 02:30:10 INFO  : Exiting...
-[2026-03-15 02:30:11] [entrypoint] Shutdown complete
-[2026-03-15 02:30:11] [entrypoint] Received termination signal, shutting down...
-[2026-03-15 02:30:11] [entrypoint] Shutdown complete

@@ -94,16 +94,26 @@ chmod 755 /var/cache/lazy-dvc
 
 RCLONE_FIFO="/tmp/rclone_fifo"
 SSHD_FIFO="/tmp/sshd_fifo"
+LAZYPUBK_FIFO="/tmp/lazypubk_fifo"
+AUTH_FIFO="/tmp/lazy-dvc-auth_fifo"
 
-mkfifo "$RCLONE_FIFO" "$SSHD_FIFO"
+mkfifo "$RCLONE_FIFO" "$SSHD_FIFO" "$LAZYPUBK_FIFO" "$AUTH_FIFO"
 
 # Background log prefixers - these run for the container's lifetime
 (sed 's/^/[rclone] /' < "$RCLONE_FIFO" >&2) &
 (sed 's/^/[sshd] /' < "$SSHD_FIFO" >&2) &
+(sed 's/^/[lazypubk] /' < "$LAZYPUBK_FIFO" >&2) &
+(sed 's/^/[lazy-dvc-auth] /' < "$AUTH_FIFO" >&2) &
 
 # Keep FIFOs open even if process crashes (prevents sed from exiting)
 exec 3> "$RCLONE_FIFO"
 exec 4> "$SSHD_FIFO"
+exec 5> "$LAZYPUBK_FIFO"
+exec 6> "$AUTH_FIFO"
+
+# Export FIFO paths for child processes
+export LDVC_LOG_FIFO="$LAZYPUBK_FIFO"
+export LDVC_AUTH_LOG_FIFO="$AUTH_FIFO"
 
 # -----------------------------------------------------------------------------
 # Rclone Configuration

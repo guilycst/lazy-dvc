@@ -1,34 +1,56 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
-	"strings"
+	"os/signal"
+	"syscall"
 
+	"github.com/guilycst/lazy-dvc/pkg/config"
 	"github.com/guilycst/lazy-dvc/pkg/logging"
 )
 
-var (
-	verbose bool
-	logFile string
-)
-
 func main() {
-	if err := run(); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	if err := run(ctx); err != nil {
 		slog.Error("Failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(ctx context.Context) error {
+	// Load config from env vars and /etc/lazy-dvc/env
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	// Flags override env vars
+	var (
+		verbose bool
+		logFile string
+	)
+
 	flag.BoolVar(&verbose, "v", false, "Enable verbose logging")
 	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
-	flag.StringVar(&logFile, "log-file", "", "Path to log file (default: stdout)")
+	flag.StringVar(&logFile, "log-file", "", "Path to log file (default: stderr)")
 	flag.Parse()
 
+	// Apply flag overrides
+	if verbose {
+		cfg.Verbose = true
+	}
+	if logFile != "" {
+		cfg.LogFile = logFile
+	}
+
+	// Validate user argument
 	if len(flag.Args()) < 1 {
 		slog.Error("Missing user argument")
 		os.Exit(1)
@@ -41,74 +63,52 @@ func run() error {
 		os.Exit(1)
 	}
 
-	if envLogFile := os.Getenv("LDVC_LOG_FILE"); envLogFile != "" && logFile == "" {
-		logFile = envLogFile
-	}
-
-	if err := logging.SetupLogger(logFile, "lazy-dvc-auth", verbose); err != nil {
+	// Setup logging
+	if err := logging.SetupLogger(cfg.LogFile, "lazy-dvc-auth", cfg.Verbose); err != nil {
 		return fmt.Errorf("failed to setup logger: %w", err)
 	}
 
-	org := getEnv("LDVC_GH_ORG_NAME")
-	team := getEnv("LDVC_GH_TEAM_NAME")
-	tokenFile := getEnv("LDVC_GH_TOKEN_FILE")
+	slog.DebugContext(ctx, "Starting lazy-dvc-auth")
+	slog.DebugContext(ctx, "Configuration", "org", cfg.GH.OrgName, "team", cfg.GH.TeamName, "user", targetUser)
 
-	if tokenFile == "" {
-		tokenFile = "/run/secrets/gh_token"
-	}
-
-	if org == "" {
-		slog.Error("Missing LDVC_GH_ORG_NAME")
+	// Validate required config
+	if cfg.GH.OrgName == "" {
+		slog.ErrorContext(ctx, "Missing LDVC_GH_ORG_NAME")
 		os.Exit(1)
 	}
 
-	slog.Debug("Fetching keys", "org", org, "team", team, "user", targetUser)
-
-	args := []string{"--org", org}
-	if team != "" {
-		args = append(args, "--team", team)
+	if cfg.GH.Token == "" && cfg.GH.TokenFile == "" {
+		cfg.GH.TokenFile = "/run/secrets/gh_token"
 	}
-	if verbose {
+
+	slog.InfoContext(ctx, "Fetching keys", "org", cfg.GH.OrgName, "team", cfg.GH.TeamName, "user", targetUser)
+
+	// Build lazypubk command
+	args := []string{"--org", cfg.GH.OrgName}
+	if cfg.GH.TeamName != "" {
+		args = append(args, "--team", cfg.GH.TeamName)
+	}
+	if cfg.Verbose {
 		args = append(args, "-v")
 	}
 
-	cmd := exec.Command("lazypubk", args...)
+	cmd := exec.CommandContext(ctx, "lazypubk", args...)
 	cmd.Env = append(os.Environ(),
-		"LDVC_GH_TOKEN_FILE="+tokenFile,
-		"LDVC_GH_ORG_NAME="+org,
+		"LDVC_GH_TOKEN_FILE="+cfg.GH.TokenFile,
+		"LDVC_GH_ORG_NAME="+cfg.GH.OrgName,
 	)
-	if logFile != "" {
-		cmd.Env = append(cmd.Env, "LDVC_LOG_FILE="+logFile)
+	if cfg.LogFile != "" {
+		cmd.Env = append(cmd.Env, "LDVC_LOG_FILE="+cfg.LogFile)
 	}
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		slog.Error("lazypubk failed", "error", err)
+		slog.ErrorContext(ctx, "lazypubk failed", "error", err)
 		os.Exit(1)
 	}
 
-	slog.Debug("Keys fetched successfully")
+	slog.InfoContext(ctx, "Keys fetched successfully")
 	return nil
-}
-
-func getEnv(key string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
-	}
-
-	data, err := os.ReadFile("/etc/lazy-dvc/env")
-	if err != nil {
-		return ""
-	}
-
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, key+"=") {
-			return strings.TrimPrefix(line, key+"=")
-		}
-	}
-
-	return ""
 }
