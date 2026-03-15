@@ -66,13 +66,14 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
-          BINARY_NAME="lazy-dvc-${{ matrix.goos }}-${{ matrix.goarch }}"
+          OS="${{ matrix.goos }}"
+          ARCH="${{ matrix.goarch }}"
           EXT=""
-          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          if [ "$OS" = "windows" ]; then EXT=".exe"; fi
           mkdir -p dist
-          go build -trimpath -ldflags="-s -w" -o "dist/${BINARY_NAME}${EXT}" ./cmd/lazypubk
-          go build -trimpath -ldflags="-s -w" -o "dist/${BINARY_NAME}-auth${EXT}" ./cmd/lazy-dvc-auth
-          go build -trimpath -ldflags="-s -w" -o "dist/${BINARY_NAME}-restricted-shell${EXT}" ./cmd/restricted-shell
+          go build -trimpath -ldflags="-s -w" -o "dist/lazypubk-${OS}-${ARCH}${EXT}" ./cmd/lazypubk
+          go build -trimpath -ldflags="-s -w" -o "dist/lazy-dvc-auth-${OS}-${ARCH}${EXT}" ./cmd/lazy-dvc-auth
+          go build -trimpath -ldflags="-s -w" -o "dist/restricted-shell-${OS}-${ARCH}${EXT}" ./cmd/restricted-shell
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
