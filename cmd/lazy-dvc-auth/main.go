@@ -14,12 +14,19 @@ import (
 	"github.com/guilycst/lazy-dvc/pkg/logging"
 )
 
+const (
+	DefaultLazypubkFifo = "/tmp/lazypubk_fifo"
+	DefaultAuthFifo     = "/tmp/lazy-dvc-auth_fifo"
+)
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	if err := run(ctx); err != nil {
-		slog.Error("Failed", "error", err)
+		slog.ErrorContext(ctx, "Failed", "error", err)
+		stop()
+		<-ctx.Done()
 		os.Exit(1)
 	}
 }
@@ -64,9 +71,11 @@ func run(ctx context.Context) error {
 	}
 
 	// Setup logging
-	if err := logging.SetupLogger(cfg.LogFile, "lazy-dvc-auth", cfg.Verbose); err != nil {
+	close, err := logging.SetupLogger(ctx, cfg.LogFile, cfg.Verbose)
+	if err != nil {
 		return fmt.Errorf("failed to setup logger: %w", err)
 	}
+	defer close()
 
 	slog.DebugContext(ctx, "Starting lazy-dvc-auth")
 	slog.DebugContext(ctx, "Configuration", "org", cfg.GH.OrgName, "team", cfg.GH.TeamName, "user", targetUser)
@@ -106,7 +115,7 @@ func run(ctx context.Context) error {
 
 	if err := cmd.Run(); err != nil {
 		slog.ErrorContext(ctx, "lazypubk failed", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to execute lazypubk: %w", err)
 	}
 
 	slog.InfoContext(ctx, "Keys fetched successfully")

@@ -8,42 +8,7 @@ import (
 	"os"
 )
 
-type PrefixHandler struct {
-	inner  slog.Handler
-	prefix string
-}
-
-func NewPrefixHandler(inner slog.Handler, prefix string) *PrefixHandler {
-	return &PrefixHandler{
-		inner:  inner,
-		prefix: prefix,
-	}
-}
-
-func (h *PrefixHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return h.inner.Enabled(ctx, level)
-}
-
-func (h *PrefixHandler) Handle(ctx context.Context, r slog.Record) error {
-	r.AddAttrs(slog.String("prefix", h.prefix))
-	return h.inner.Handle(ctx, r)
-}
-
-func (h *PrefixHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &PrefixHandler{
-		inner:  h.inner.WithAttrs(attrs),
-		prefix: h.prefix,
-	}
-}
-
-func (h *PrefixHandler) WithGroup(name string) slog.Handler {
-	return &PrefixHandler{
-		inner:  h.inner.WithGroup(name),
-		prefix: h.prefix,
-	}
-}
-
-func NewHandler(w io.Writer, prefix string, verbose bool) slog.Handler {
+func NewHandler(w io.Writer, verbose bool) slog.Handler {
 	opts := &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}
@@ -52,47 +17,29 @@ func NewHandler(w io.Writer, prefix string, verbose bool) slog.Handler {
 	}
 
 	textHandler := slog.NewTextHandler(w, opts)
-	return NewPrefixHandler(textHandler, prefix)
+	return textHandler
 }
 
-const (
-	DefaultLazypubkFifo = "/tmp/lazypubk_fifo"
-	DefaultAuthFifo     = "/tmp/lazy-dvc-auth_fifo"
-)
-
-func SetupLogger(logFile string, prefix string, verbose bool) error {
+func SetupLogger(ctx context.Context, logFile string, verbose bool) (func() error, error) {
 	var w io.Writer = os.Stderr
-
-	// Try to use FIFO for container mode (hardcoded paths)
-	var fifoPath string
-	switch prefix {
-	case "lazypubk":
-		fifoPath = DefaultLazypubkFifo
-	case "lazy-dvc-auth":
-		fifoPath = DefaultAuthFifo
-	}
-
-	if fifoPath != "" && logFile == "" {
-		if f, err := os.OpenFile(fifoPath, os.O_WRONLY, 0); err == nil {
-			w = f
-		}
-	}
+	cf := func() error { return nil }
 
 	if logFile != "" {
 		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			return fmt.Errorf("failed to open log file: %w", err)
+			return cf, fmt.Errorf("failed to open log file: %w", err)
 		}
+		cf = f.Close
 		w = f
 	}
 
-	logger := slog.New(NewHandler(w, prefix, verbose))
+	logger := slog.New(NewHandler(w, verbose))
 	slog.SetDefault(logger)
 
-	return nil
+	return cf, nil
 }
 
-func SetupLoggerWithWriter(w io.Writer, prefix string, verbose bool) {
-	logger := slog.New(NewHandler(w, prefix, verbose))
+func SetupLoggerWithWriter(w io.Writer, verbose bool) {
+	logger := slog.New(NewHandler(w, verbose))
 	slog.SetDefault(logger)
 }

@@ -34,4 +34,3 @@ gh_token.txt
 
 lazy-dvc-auth
 .gitignore
-data/*.dvc

@@ -21,33 +21,91 @@ func main() {
 
 	if err := run(ctx); err != nil {
 		slog.Error("Failed", "error", err)
+		stop()
+		<-ctx.Done()
 		os.Exit(1)
 	}
 }
 
 func run(ctx context.Context) error {
-	// Load config from env vars and /etc/lazy-dvc/env
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Flags override env vars
-	var (
-		verbose       bool
-		logFile       string
-		cacheTTL      string
-		cacheDir      string
-		cacheDisabled bool
+	parseFlags(cfg)
+
+	close, err := logging.SetupLogger(ctx, cfg.LogFile, cfg.Verbose)
+	if err != nil {
+		return fmt.Errorf("failed to setup logger: %w", err)
+	}
+	defer close()
+
+	slog.DebugContext(ctx, "Starting lazypubk")
+	slog.DebugContext(ctx, "Configuration", "org", cfg.GH.OrgName, "team", cfg.GH.TeamName, "cache_ttl", cfg.CacheTTL, "cache_disabled", cfg.CacheDisabled)
+
+	if cfg.GH.Token == "" && cfg.GH.TokenFile == "" {
+		return fmt.Errorf("no GitHub token provided: set LDVC_GH_TOKEN or LDVC_GH_TOKEN_FILE")
+	}
+
+	ghProvider := pubkeyprovider.NewGitHubProvider(cfg.GH.Token)
+
+	var provider pubkeyprovider.Provider = ghProvider
+
+	if !cfg.CacheDisabled {
+		provider = pubkeyprovider.NewCachedProvider(ghProvider,
+			pubkeyprovider.WithCacheDir(cfg.CacheDir),
+			pubkeyprovider.WithCacheTTL(cfg.CacheTTL),
+		)
+		slog.DebugContext(ctx, "Caching enabled", "ttl", cfg.CacheTTL, "dir", cfg.CacheDir)
+	} else {
+		slog.DebugContext(ctx, "Caching disabled")
+	}
+
+	keys, err := provider.GetUsersPublicKeys(ctx, cfg.GH.OrgName,
+		pubkeyprovider.WithTeamName(cfg.GH.TeamName),
+		pubkeyprovider.WithMinUserRole(cfg.GH.MinUserRole),
 	)
+	if err != nil {
+		return fmt.Errorf("failed to fetch public keys: %w", err)
+	}
 
-	flag.BoolVar(&verbose, "v", false, "Enable verbose logging")
-	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
-	flag.StringVar(&logFile, "log-file", "", "Path to log file (default: stderr)")
-	flag.StringVar(&cacheTTL, "cache-ttl", "", "Cache TTL duration (golang format)")
-	flag.StringVar(&cacheDir, "cache-dir", "", "Cache directory")
-	flag.BoolVar(&cacheDisabled, "no-cache", false, "Disable caching")
+	slog.DebugContext(ctx, "Fetched public keys", "count", len(keys))
 
+	for _, key := range keys {
+		fmt.Println(key)
+	}
+
+	return nil
+}
+
+func parseFlags(cfg *config.Config) {
+	flag.Func("log-file", "Path to log file", func(value string) error {
+		cfg.LogFile = value
+		return nil
+	})
+	flag.Func("cache-ttl", "Cache TTL duration", func(value string) error {
+		if duration, err := time.ParseDuration(value); err == nil {
+			cfg.CacheTTL = duration
+		}
+		return nil
+	})
+	flag.Func("cache-dir", "Cache directory", func(value string) error {
+		cfg.CacheDir = value
+		return nil
+	})
+	flag.BoolFunc("v", "Enable verbose logging", func(value string) error {
+		cfg.Verbose = true
+		return nil
+	})
+	flag.BoolFunc("verbose", "Enable verbose logging", func(value string) error {
+		cfg.Verbose = true
+		return nil
+	})
+	flag.BoolFunc("no-cache", "Disable caching", func(value string) error {
+		cfg.CacheDisabled = true
+		return nil
+	})
 	flag.Func("org", "GitHub organization name", func(value string) error {
 		cfg.GH.OrgName = value
 		return nil
@@ -66,68 +124,4 @@ func run(ctx context.Context) error {
 	})
 
 	flag.Parse()
-
-	// Apply flag overrides
-	if verbose {
-		cfg.Verbose = true
-	}
-	if logFile != "" {
-		cfg.LogFile = logFile
-	}
-	if cacheTTL != "" {
-		if duration, err := time.ParseDuration(cacheTTL); err == nil {
-			cfg.CacheTTL = duration
-		}
-	}
-	if cacheDir != "" {
-		cfg.CacheDir = cacheDir
-	}
-	if cacheDisabled {
-		cfg.CacheDisabled = true
-	}
-
-	// Setup logging
-	if err := logging.SetupLogger(cfg.LogFile, "lazypubk", cfg.Verbose); err != nil {
-		return fmt.Errorf("failed to setup logger: %w", err)
-	}
-
-	slog.DebugContext(ctx, "Starting lazypubk")
-	slog.DebugContext(ctx, "Configuration", "org", cfg.GH.OrgName, "team", cfg.GH.TeamName, "cache_ttl", cfg.CacheTTL, "cache_disabled", cfg.CacheDisabled)
-
-	// Validate required config
-	if cfg.GH.Token == "" && cfg.GH.TokenFile == "" {
-		return fmt.Errorf("no GitHub token provided: set LDVC_GH_TOKEN or LDVC_GH_TOKEN_FILE")
-	}
-
-	// Create provider
-	ghProvider := pubkeyprovider.NewGitHubProvider(cfg.GH.Token)
-
-	var provider pubkeyprovider.Provider = ghProvider
-
-	if !cfg.CacheDisabled {
-		provider = pubkeyprovider.NewCachedProvider(ghProvider,
-			pubkeyprovider.WithCacheDir(cfg.CacheDir),
-			pubkeyprovider.WithCacheTTL(cfg.CacheTTL),
-		)
-		slog.DebugContext(ctx, "Caching enabled", "ttl", cfg.CacheTTL, "dir", cfg.CacheDir)
-	} else {
-		slog.DebugContext(ctx, "Caching disabled")
-	}
-
-	// Fetch keys
-	keys, err := provider.GetUsersPublicKeys(ctx, cfg.GH.OrgName,
-		pubkeyprovider.WithTeamName(cfg.GH.TeamName),
-		pubkeyprovider.WithMinUserRole(cfg.GH.MinUserRole),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to fetch public keys: %w", err)
-	}
-
-	slog.DebugContext(ctx, "Fetched public keys", "count", len(keys))
-
-	for _, key := range keys {
-		fmt.Println(key)
-	}
-
-	return nil
 }
