@@ -33,3 +33,5 @@ go.work.sum
 gh_token.txt
 .images
 
+lazy-dvc-auth
+.gitignore

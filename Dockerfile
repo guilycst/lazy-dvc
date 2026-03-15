@@ -1,8 +1,8 @@
-FROM golang:1.25 AS builder
+FROM golang:1.26-alpine AS builder
+
+RUN apk add --no-cache git
 
 WORKDIR /src
-
-RUN apt-get update && apt-get install -y git
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -18,47 +18,42 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
   go build -trimpath -ldflags="-s -w" -o /out/restricted-shell ./cmd/restricted-shell
 
-FROM ubuntu:24.04
+FROM alpine:3.23
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update && apt-get install -y \
-    openssh-server \
+RUN apk add --no-cache \
+    openssh \
     curl \
     ca-certificates \
     fuse3 \
     rclone \
-    && rm -rf /var/lib/apt/lists/* \
+    netcat-openbsd \
     && mkdir /var/run/sshd
 
 COPY --from=builder /out/lazypubk /usr/local/bin/lazypubk
 COPY --from=builder /out/lazy-dvc-auth /usr/local/bin/lazy-dvc-auth
 COPY --from=builder /out/restricted-shell /usr/local/bin/restricted-shell
 
-RUN useradd -m -s /usr/local/bin/restricted-shell dvc-storage && \
+RUN adduser -D -s /usr/local/bin/restricted-shell dvc-storage && \
+    passwd -d dvc-storage && \
     mkdir -p /home/dvc-storage/data && \
     chown -R root:root /home/dvc-storage && \
     chmod -R 755 /home/dvc-storage && \
     chown -R dvc-storage:dvc-storage /home/dvc-storage/data && \
-    chmod -R 777 /home/dvc-storage/data
+    chmod -R 777 /home/dvc-storage/data && \
+    mkdir -p /var/cache/lazy-dvc && \
+    chown -R dvc-storage:dvc-storage /var/cache/lazy-dvc && \
+    chmod 755 /var/cache/lazy-dvc
 
-RUN sed -i 's/#AuthorizedKeysCommand/AuthorizedKeysCommand/' /etc/ssh/sshd_config && \
-    sed -i 's/AuthorizedKeysCommand none/AuthorizedKeysCommand \/usr\/local\/bin\/lazy-dvc-auth %u/' /etc/ssh/sshd_config && \
-    sed -i 's/AuthorizedKeysCommandUser nobody/AuthorizedKeysCommandUser root/' /etc/ssh/sshd_config && \
-    sed -i 's/#AuthorizedKeysCommandUser/AuthorizedKeysCommandUser/' /etc/ssh/sshd_config && \
-    sed -i 's/#PubkeyAuthentication/PubkeyAuthentication/' /etc/ssh/sshd_config && \
-    sed -i 's/PubkeyAuthentication no/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config && \
-    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
-    sed -i 's/^AcceptEnv.*/#AcceptEnv LDVC_GH_TOKEN LDVC_GH_ORG_NAME LDVC_GH_TEAM_NAME/' /etc/ssh/sshd_config && \
-    sed -i 's/^#Subsystem.*sftp.*/Subsystem sftp internal-sftp/' /etc/ssh/sshd_config && \
-    echo 'Match User dvc-storage' >> /etc/ssh/sshd_config && \
-    echo '    ForceCommand internal-sftp' >> /etc/ssh/sshd_config && \
-    echo '    ChrootDirectory %h' >> /etc/ssh/sshd_config && \
-    echo '    AllowTcpForwarding no' >> /etc/ssh/sshd_config
+COPY sshd_config /etc/ssh/sshd_config
+
+# Generate SSH host keys
+RUN ssh-keygen -A
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD nc -z localhost 22 && mountpoint -q /home/dvc-storage/data || exit 1
 
 EXPOSE 22
 

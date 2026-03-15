@@ -1,0 +1,8 @@
+0, total size 0 (was 0)
+Connection closed by ::1 port 52608
+Connection closed by ::1 port 35496
+2026/03/15 02:30:09 INFO  : vfs cache: cleaned: objects 0 (was 0) in use 0, to upload 0, uploading 0, total size 0 (was 0)
+[2026-03-15 02:30:10] [entrypoint] Received termination signal, shutting down...
+[2026-03-15 02:30:10] [entrypoint] Stopping rclone (PID: 17)
+2026/03/15 02:30:10 INFO  : Signal received: terminated
+[2026-03-15 02:30:10] [entrypoint] Stopping sshd (PID: 36)

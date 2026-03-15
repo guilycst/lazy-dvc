@@ -113,6 +113,9 @@ dvc push
 | `LDVC_GH_TOKEN` | Yes | GitHub PAT (use Docker secret) |
 | `LDVC_GH_ORG_NAME` | Yes | GitHub organization name |
 | `LDVC_GH_TEAM_NAME` | No | Filter to specific team |
+| `LDVC_CACHE_TTL` | No | Cache duration (default: `5m`, golang duration format) |
+| `LDVC_CACHE_DISABLED` | No | Set to `true` to disable caching |
+| `LDVC_LOG_FILE` | No | Path to log file (default: stdout) |
 
 ### Docker Secrets
 
@@ -138,6 +141,48 @@ For production S3 backends, configure these environment variables:
 | `RCLONE_VFS_READ_AHEAD` | `256k` | Read-ahead buffer size |
 
 See [rclone VFS documentation](https://rclone.org/vfs/) for more options.
+
+### Caching
+
+To avoid hitting GitHub API rate limits, `lazy-dvc` caches SSH public keys locally:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LDVC_CACHE_TTL` | `5m` | Cache duration (golang format: `5m`, `1h`, etc.) |
+| `LDVC_CACHE_DISABLED` | `false` | Set to `true` to disable caching |
+
+Cache location: `/var/cache/lazy-dvc/keys.json`
+
+The cache uses a file-based lock mechanism to handle concurrent SSH connections safely. If a process crashes while holding the lock, the lock expires after 3 seconds, allowing other processes to take over.
+
+### Logging
+
+All container logs are written to stdout with process prefixes for easy filtering:
+
+| Prefix | Process |
+|--------|---------|
+| `[lazypubk]` | Key fetching |
+| `[lazy-dvc-auth]` | SSH auth wrapper |
+| `[rclone]` | S3 mount operations |
+| `[sshd]` | SSH connections |
+| `[entrypoint]` | Container startup/shutdown |
+
+```bash
+# View all logs
+docker compose logs -f lazy-dvc
+
+# Filter by process
+docker compose logs -f lazy-dvc | grep '\[sshd\]'
+```
+
+To write logs to a file instead of stdout:
+
+```yaml
+environment:
+  - LDVC_LOG_FILE=/var/log/lazy-dvc.log
+volumes:
+  - ./logs:/var/log
+```
 
 ### SSH/SFTP Access
 
