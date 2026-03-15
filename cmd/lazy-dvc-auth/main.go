@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -26,12 +25,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Fprintf(os.Stderr, "DEBUG: Fetching keys for org=%s team=%s\n", org, team)
-
 	cmd := exec.Command("lazypubk", "github",
 		"--org", org,
 		"-v",
 	)
+
+	if team != "" {
+		cmd.Args = append(cmd.Args, "--team", team)
+	}
 
 	cmd.Env = append(os.Environ(),
 		"LDVC_GH_TOKEN_FILE=/run/secrets/gh_token",

@@ -1,4 +1,6 @@
 services:
+  # Local development only - for production, use any S3 provider
+  # See: https://github.com/versity/versitygw
   versitygw:
     image: versity/versitygw:latest
     ports:
@@ -22,6 +24,14 @@ services:
       - AWS_ACCESS_KEY_ID=testuser
       - AWS_SECRET_ACCESS_KEY=secret
       - RCLONE_S3_ENDPOINT=http://versitygw:8070
+      # Rclone options (optional - defaults shown)
+      # - RCLONE_VFS_CACHE_MODE=full
+      # - RCLONE_VFS_CACHE_MAX_SIZE=50G
+      # - RCLONE_ALLOW_OTHER=true
+      # - RCLONE_ATTR_TIMEOUT=1s
+      # - RCLONE_DIR_CACHE_TIME=1m
+      # - RCLONE_VFS_READ_CHUNK_SIZE=128k
+      # - RCLONE_VFS_READ_AHEAD=256k
     secrets:
       - gh_token
     depends_on:

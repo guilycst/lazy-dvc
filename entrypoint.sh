@@ -24,14 +24,26 @@ endpoint = $RCLONE_ENDPOINT
 region = $AWS_DEFAULT_REGION
 EOF
 
+RCLONE_VFS_CACHE_MODE=${RCLONE_VFS_CACHE_MODE:-full}
+RCLONE_VFS_CACHE_MAX_SIZE=${RCLONE_VFS_CACHE_MAX_SIZE:-50G}
+RCLONE_ATTR_TIMEOUT=${RCLONE_ATTR_TIMEOUT:-1s}
+RCLONE_DIR_CACHE_TIME=${RCLONE_DIR_CACHE_TIME:-1m}
+RCLONE_VFS_READ_CHUNK_SIZE=${RCLONE_VFS_READ_CHUNK_SIZE:-128k}
+RCLONE_VFS_READ_AHEAD=${RCLONE_VFS_READ_AHEAD:-256k}
+
+RCLONE_ALLOW_OTHER_FLAG=""
+if [ "${RCLONE_ALLOW_OTHER:-true}" = "true" ]; then
+    RCLONE_ALLOW_OTHER_FLAG="--allow-other"
+fi
+
 rclone mount \
-    --vfs-cache-mode full \
-    --vfs-cache-max-size 50G \
-    --allow-other \
-    --attr-timeout 1s \
-    --dir-cache-time 1m \
-    --vfs-read-chunk-size 128k \
-    --vfs-read-ahead 256k \
+    --vfs-cache-mode "$RCLONE_VFS_CACHE_MODE" \
+    --vfs-cache-max-size "$RCLONE_VFS_CACHE_MAX_SIZE" \
+    $RCLONE_ALLOW_OTHER_FLAG \
+    --attr-timeout "$RCLONE_ATTR_TIMEOUT" \
+    --dir-cache-time "$RCLONE_DIR_CACHE_TIME" \
+    --vfs-read-chunk-size "$RCLONE_VFS_READ_CHUNK_SIZE" \
+    --vfs-read-ahead "$RCLONE_VFS_READ_AHEAD" \
     s3: /home/dvc-storage/data &
 
 RCLONE_PID=$!
