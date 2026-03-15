@@ -41,8 +41,17 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux]
-        goarch: [amd64, arm64]
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
     steps:
       - uses: actions/checkout@v4
 
@@ -58,10 +67,12 @@ jobs:
           CGO_ENABLED: 0
         run: |
           BINARY_NAME="lazy-dvc-${{ matrix.goos }}-${{ matrix.goarch }}"
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
           mkdir -p dist
-          go build -trimpath -ldflags="-s -w" -o dist/$BINARY_NAME ./cmd/lazypubk
-          go build -trimpath -ldflags="-s -w" -o dist/$BINARY_NAME-auth ./cmd/lazy-dvc-auth
-          go build -trimpath -ldflags="-s -w" -o dist/$BINARY_NAME-restricted-shell ./cmd/restricted-shell
+          go build -trimpath -ldflags="-s -w" -o "dist/${BINARY_NAME}${EXT}" ./cmd/lazypubk
+          go build -trimpath -ldflags="-s -w" -o "dist/${BINARY_NAME}-auth${EXT}" ./cmd/lazy-dvc-auth
+          go build -trimpath -ldflags="-s -w" -o "dist/${BINARY_NAME}-restricted-shell${EXT}" ./cmd/restricted-shell
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
