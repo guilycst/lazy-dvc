@@ -1,5 +1,0 @@
-[core]
-    remote = storage
-['remote "storage"']
-    url = ssh://dvc-storage@localhost:2222/data
-    max_sessions = 5

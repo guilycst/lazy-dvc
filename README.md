@@ -10,17 +10,6 @@
 
 ---
 
-## Why lazy-dvc?
-
-Dealing with large files in a Git-based workflow is a classic challenge.
-
-- **Git LFS** didn't fit our team's workflow and culture
-- **Vanilla DVC** is powerful, but the barrier to entry is often the **secondary authentication flow**—managing separate SSH keys, IAM roles, or storage credentials creates friction that leads to "out of sync" assets
-
-We didn't want a "perfect" enterprise solution; we wanted a **convenient** one.
-
----
-
 ## The Core Philosophy
 
 > **If you are part of the GitHub Organization where the repository lives, you should already have access to the assets.**
@@ -102,7 +91,7 @@ lazy-dvc unifies authentication through GitHub SSH keys—**one auth method for 
 
 ```
 ┌─────────────┐                        ┌─────────────────┐
-│   Developer │     SSH keys          │    GitHub       │
+│   Developer │     SSH keys           │    GitHub       │
 │             │ ─────────────────────► │   (org/team)    │
 └─────────────┘                        └─────────────────┘
        │                                      │
@@ -111,7 +100,7 @@ lazy-dvc unifies authentication through GitHub SSH keys—**one auth method for 
        ▼                                      ▼
 ┌─────────────┐                        ┌─────────────────┐
 │   dvc push  │ ──── SSH/SFTP ───────► │   lazy-dvc      │
-│   dvc pull   │                        │   → S3 Backend   │
+│   dvc pull  │                        │   → S3 Backend  │
 └─────────────┘                        └─────────────────┘
 ```
 
@@ -130,10 +119,10 @@ lazy-dvc unifies authentication through GitHub SSH keys—**one auth method for 
 
 ```
 ┌─────────────┐     SSH/SFTP      ┌────────────────────┐
-│   Developer │ ───────────────► │    lazy-dvc        │
-│   (DVC)    │                  │  ┌──────────────┐  │
-│             │                  │  │  authpubk    │──┼──► GitHub API
-└─────────────┘                  │  │ (fetches keys)│  │
+│   Developer │ ───────────────►  │    lazy-dvc        │
+│   (DVC)     │                   │  ┌──────────────┐  │
+│             │                   │  │  authpubk    │──┼──► GitHub API
+└─────────────┘                   │  │ (fetches keys)│ │
                                   │  └──────────────┘  │
                                   │  ┌──────────────┐  │
                                   │  │ rclone mount │──┼──► S3 Backend
@@ -182,6 +171,9 @@ cd lazy-dvc
 
 # 2. Set your GitHub token (needs read:org scope)
 export LDVC_GH_TOKEN=ghp_xxxxx
+
+# 2. Set your GitHub org name
+export LDVC_GH_ORG_NAME=myorg
 
 # 3. Build and run
 docker compose up -d --build
@@ -240,7 +232,7 @@ For production S3 backends, configure these environment variables:
 | `RCLONE_VFS_READ_CHUNK_SIZE` | `128k` | Read chunk size |
 | `RCLONE_VFS_READ_AHEAD` | `256k` | Read-ahead buffer size |
 
-See [rclone VFS documentation](https://rclone.org/vfs/) for more options.
+See [rclone VFS documentation](https://rclone.org/commands/rclone_mount/#vfs-virtual-file-system) for more options.
 
 ### Caching
 
