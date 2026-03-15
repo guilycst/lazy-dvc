@@ -33,6 +33,73 @@ By using your GitHub SSH keys as the source of truth, `lazy-dvc` ensures that:
 
 ---
 
+## Why Not Git LFS?
+
+Git LFS solves large file storage, but comes with significant tradeoffs:
+
+| Issue | Git LFS |
+|-------|---------|
+| **Auth** | Requires separate credentials (HTTPS + PAT) for storage |
+| **Limits** | 1 GB storage + 1 GB bandwidth/month on free tier |
+| **History** | Rebase/filter-branch corrupts LFS pointers |
+| **CI/CD** | Every job needs `git lfs install` + credentials |
+| **Partial clone** | Doesn't work well with `--filter` |
+| **Locking** | Optional, easy to forget, causes conflicts |
+| **Vendor lock** | GitHub LFS, GitLab LFS, etc. |
+
+## Why Not Standard DVC?
+
+DVC is excellent, but the default setup requires managing authentication separately:
+
+```
+Standard DVC requires TWO auth methods:
+
+  Git access:     SSH keys → GitHub
+  DVC storage:    AWS keys/SSH keys/HTTP creds → Storage (separate!)
+```
+
+**The friction adds up:**
+
+| Task | Standard DVC | lazy-dvc |
+|------|--------------|----------|
+| New team member | Generate SSH key, distribute to storage server | Add to GitHub team |
+| Offboarding | Manually revoke SSH key from storage | Remove from GitHub team |
+| Access control | Per-user key management on storage server | GitHub team membership |
+| CI/CD | Configure storage credentials in every job | Use existing SSH deploy keys |
+| Audit trail | Separate logs per storage server | GitHub audit logs |
+
+---
+
+## How lazy-dvc Solves This
+
+lazy-dvc unifies authentication through GitHub SSH keys—**one auth method for everything**:
+
+```
+┌─────────────┐                        ┌─────────────────┐
+│   Developer │     SSH keys          │    GitHub       │
+│             │ ─────────────────────► │   (org/team)    │
+└─────────────┘                        └─────────────────┘
+       │                                      │
+       │                                      │ same keys
+       │                                      │
+       ▼                                      ▼
+┌─────────────┐                        ┌─────────────────┐
+│   dvc push  │ ──── SSH/SFTP ───────► │   lazy-dvc      │
+│   dvc pull   │                        │   → S3 Backend   │
+└─────────────┘                        └─────────────────┘
+```
+
+**The flow:**
+
+1. Developer pushes to Git repository (SSH key #1)
+2. Developer runs `dvc push` (same SSH key #1)
+3. lazy-dvc fetches public keys from GitHub org/team
+4. If the key matches → access granted to storage
+
+**No separate credentials. No key distribution. No storage onboarding.**
+
+---
+
 ## How it Works
 
 ```
