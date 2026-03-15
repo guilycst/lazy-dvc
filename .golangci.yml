@@ -11,8 +11,6 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
 
 formatters:
   enable:
