@@ -23,46 +23,10 @@ By using your GitHub SSH keys as the source of truth, `lazy-dvc` ensures that:
 ---
 
 ## Why Not Git LFS?
+Git LFS solves large file storage, but it is tightly coupled to your Git provider; each provider has its own limitations and/or extra charges for storage and bandwidth.
+Self-hosting is also something of a headache, as there is no standalone LFS server with a strong community backing it, and many lack the security features necessary for enterprise environments.
 
-Git LFS solves large file storage, but comes with significant tradeoffs:
-
-**GitHub LFS quotas (free tier):**
-
-| Plan | Storage | Bandwidth/month |
-|------|---------|-----------------|
-| GitHub Free | 10 GB | 10 GB |
-| GitHub Pro | 10 GB | 10 GB |
-| GitHub Team | 250 GB | 250 GB |
-| Enterprise | 250 GB | 250 GB |
-
-**How usage is measured:**
-
-- **Uploads** → Counts against repository owner's storage (bandwidth not measured)
-- **Downloads** → Counts against repository owner's bandwidth
-- **Every push** → Entire file size charged again (not delta)
-- **CI/CD pulls** → Each `git lfs pull` in Actions counts against bandwidth
-
-**Example:**
-```
-Push 500 MB file        → 500 MB storage used
-Push 1 byte change      → Another 500 MB storage (total: 1 GB)
-Pull twice              → 1 GB bandwidth used
-CI runs 10 times/month   → 5 GB bandwidth used
-```
-
-**Other issues:**
-
-| Issue | Git LFS |
-|-------|---------|
-| **Auth** | Requires separate credentials (HTTPS + PAT) for storage |
-| **History** | Rebase/filter-branch corrupts LFS pointers |
-| **CI/CD** | Every job needs `git lfs install` + credentials |
-| **Partial clone** | Doesn't work well with `--filter` |
-| **Locking** | Optional, easy to forget, causes conflicts |
-| **Vendor lock** | GitHub LFS, GitLab LFS, etc. |
-| **Quota exceeded** | Can't push new files, only retrieve pointers |
-
-## Why Not Standard DVC?
+## Maybe DVC then?
 
 DVC is excellent, but the default setup requires managing authentication separately:
 
